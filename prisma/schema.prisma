@@ -1,0 +1,161 @@
+// agents.keyra.ie — public marketplace + tenant agent world + ERP relationship layer
+// Mirrors a subset of the catalog model. Adds subscriptions and tenant instances.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Marketplace catalog mirror
+//   Synced from ciright.agents.keyra.ie. Carries Keyra IDs and parent lineage.
+// -----------------------------------------------------------------------------
+model MarketplaceAgent {
+  keyra_agent_id            String   @id
+  ciright_parent_agent_id   String?
+
+  agent_name                String
+  agent_slug                String   @unique
+  agent_category            String
+  agent_industry            String
+  agent_function            String
+  agent_type                String
+  agent_description         String
+
+  agent_capabilities        String   @default("[]")
+  required_inputs           String   @default("[]")
+  expected_outputs          String   @default("[]")
+  required_permissions      String   @default("[]")
+  required_integrations     String   @default("[]")
+  country_applicability     String   @default("[\"ALL\"]")
+
+  knowledge_pack_required   Boolean  @default(false)
+  human_approval_required   Boolean  @default(false)
+
+  security_classification   String   @default("Internal")
+  regulatory_classification String   @default("None")
+  subscription_type         String   @default("Standard") // Standard | Regulated | Sovereign | Bespoke
+  deployment_status         String   @default("Published")
+  billing_model             String   @default("seat") // seat | event | metered | sovereign-contract
+
+  version                   String   @default("0.1.0")
+  created_at                DateTime @default(now())
+  updated_at                DateTime @updatedAt
+
+  subscriptions             AgentSubscription[]
+  bundle_items              BundleItem[]
+}
+
+// -----------------------------------------------------------------------------
+// Bundles
+// -----------------------------------------------------------------------------
+model Bundle {
+  id            String       @id @default(cuid())
+  name          String
+  slug          String       @unique
+  industry      String
+  description   String
+  positioning   String?
+  highlight     Boolean      @default(false)
+  created_at    DateTime     @default(now())
+  items         BundleItem[]
+}
+
+model BundleItem {
+  id              String              @id @default(cuid())
+  bundle_id       String
+  keyra_agent_id  String
+  bundle          Bundle              @relation(fields: [bundle_id], references: [id], onDelete: Cascade)
+  agent           MarketplaceAgent    @relation(fields: [keyra_agent_id], references: [keyra_agent_id], onDelete: Cascade)
+
+  @@unique([bundle_id, keyra_agent_id])
+}
+
+// -----------------------------------------------------------------------------
+// Customers and subscriptions
+// -----------------------------------------------------------------------------
+model Customer {
+  id                  String              @id @default(cuid())
+  organization_name   String
+  industry            String
+  country             String
+  contact_name        String
+  contact_email       String              @unique
+  tenant_domain       String              @unique
+  status              String              @default("Onboarding") // Onboarding | Active | Suspended
+  created_at          DateTime            @default(now())
+
+  subscriptions       AgentSubscription[]
+  deployment_plans    DeploymentPlan[]
+}
+
+model AgentSubscription {
+  subscription_id            String              @id @default(cuid())
+  customer_id                String
+  organization_name          String
+  industry                   String
+  country                    String
+  keyra_agent_id             String
+  ciright_parent_agent_id    String?
+  tenant_agent_instance_id   String              @unique
+
+  subscription_status        String   @default("Pending") // Pending | Active | Paused | Cancelled
+  deployment_status          String   @default("Provisioning") // Provisioning | Deployed | Failed | Retired
+  subscription_start_date    DateTime?
+  subscription_end_date      DateTime?
+  billing_model              String   @default("seat")
+  usage_metering_enabled     Boolean  @default(false)
+  knowledge_pack_attached    Boolean  @default(false)
+  security_approval_status   String   @default("Pending") // Pending | Approved | Rejected
+  legal_approval_status      String   @default("Pending") // Pending | Approved | Rejected
+
+  created_at                 DateTime @default(now())
+  updated_at                 DateTime @updatedAt
+
+  customer                   Customer           @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  agent                      MarketplaceAgent   @relation(fields: [keyra_agent_id], references: [keyra_agent_id])
+}
+
+// -----------------------------------------------------------------------------
+// Deployment plans (cart before subscription)
+// -----------------------------------------------------------------------------
+model DeploymentPlan {
+  id                 String              @id @default(cuid())
+  customer_id        String
+  organization_name  String
+  industry           String
+  country            String
+  notes              String?
+  status             String              @default("Submitted") // Submitted | Reviewing | Approved | Rejected
+  created_at         DateTime            @default(now())
+  customer           Customer            @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  items              DeploymentPlanItem[]
+}
+
+model DeploymentPlanItem {
+  id              String           @id @default(cuid())
+  plan_id         String
+  keyra_agent_id  String
+  agent_name      String
+  agent_industry  String
+  plan            DeploymentPlan   @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+}
+
+// -----------------------------------------------------------------------------
+// Consultation requests
+// -----------------------------------------------------------------------------
+model ConsultationRequest {
+  id                  String   @id @default(cuid())
+  organization_name   String
+  industry            String
+  country             String
+  contact_name        String
+  contact_email       String
+  message             String?
+  status              String   @default("New") // New | Scheduled | Closed
+  created_at          DateTime @default(now())
+}
