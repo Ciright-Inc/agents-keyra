@@ -1,0 +1,15 @@
+# Railway — agents.keyra.ie (agents-keyra)
+# Requires Postgres: DATABASE_URL=${{Postgres.DATABASE_URL}}
+# Repo must be this project root (package.json at /), branch main.
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Schema + seed run at start (build has no DB access). deploy:db is non-fatal
+# so the app always boots and /api/health responds even if seeding errors.
+startCommand = "sh scripts/railway-start.sh"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
