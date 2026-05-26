@@ -4,9 +4,32 @@
  * Safe to run at build time (Railway) and at container start.
  */
 
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { Client } from "pg";
+
+function loadEnvFile() {
+  if (process.env.DATABASE_URL?.trim()) return;
+  const path = join(process.cwd(), ".env");
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
 
 export const APP_SCHEMA = "agents_keyra";
 
@@ -73,6 +96,7 @@ async function tableExists(connUrl, schema) {
  * @returns {Promise<boolean>} true if bootstrap succeeded
  */
 export async function bootstrapDatabase() {
+  loadEnvFile();
   const raw = process.env.DATABASE_URL?.trim();
   if (!raw) {
     console.log("[bootstrap-db] DATABASE_URL not set — skipping");
@@ -109,19 +133,23 @@ export async function bootstrapDatabase() {
       continue;
     }
 
-    const seedCode = await run("npx", ["--no-install", "tsx", "prisma/seed.ts"]);
-    if (seedCode !== 0) {
-      console.log(`[bootstrap-db] WARN: seed exited ${seedCode}`);
-      await new Promise((r) => setTimeout(r, 2000));
-      continue;
-    }
-
     try {
       if (await tableExists(scopedUrl, APP_SCHEMA)) {
+        const seedCode = await run("npx", [
+          "--no-install",
+          "prisma",
+          "db",
+          "seed",
+        ]);
+        if (seedCode !== 0) {
+          console.log(
+            `[bootstrap-db] WARN: seed exited ${seedCode} (tables exist — continuing)`,
+          );
+        }
         console.log("[bootstrap-db] OK — MarketplaceAgent table present");
         return true;
       }
-      console.log("[bootstrap-db] WARN: push/seed ran but MarketplaceAgent not found");
+      console.log("[bootstrap-db] WARN: push ran but MarketplaceAgent not found");
     } catch (err) {
       console.log(`[bootstrap-db] WARN: verify failed: ${err?.message ?? err}`);
     }
