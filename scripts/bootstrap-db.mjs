@@ -53,9 +53,9 @@ export function ensureSsl(url) {
 
 /** Connection URL for pg driver (schema param removed; ssl preserved). */
 export function pgConnectionUrl(url) {
-  let out = url.replace(/([?&])schema=[^&]*/g, "");
-  out = out.replace(/\?&/, "?").replace(/\?$/, "");
-  return out;
+  const u = new URL(url);
+  u.searchParams.delete("schema");
+  return u.toString();
 }
 
 function run(cmd, args, env) {
