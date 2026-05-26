@@ -1,14 +1,24 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function BundlesPage() {
-  const bundles = await prisma.bundle.findMany({
-    orderBy: [{ highlight: "desc" }, { name: "asc" }],
-    include: { items: { include: { agent: true } } },
-  });
+  const result = await safeDbQuery(() =>
+    prisma.bundle.findMany({
+      orderBy: [{ highlight: "desc" }, { name: "asc" }],
+      include: { items: { include: { agent: true } } },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const bundles = result.data;
 
   return (
     <div className="max-w-[1320px] mx-auto px-6 py-12">

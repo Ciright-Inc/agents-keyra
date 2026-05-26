@@ -1,14 +1,24 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalIndexPage() {
-  const customers = await prisma.customer.findMany({
-    orderBy: { created_at: "desc" },
-    include: { subscriptions: true, deployment_plans: true },
-  });
+  const result = await safeDbQuery(() =>
+    prisma.customer.findMany({
+      orderBy: { created_at: "desc" },
+      include: { subscriptions: true, deployment_plans: true },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const customers = result.data;
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-12">

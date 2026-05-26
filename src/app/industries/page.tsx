@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +38,18 @@ const INDUSTRY_POSITIONING: Record<string, string> = {
 };
 
 export default async function IndustriesPage() {
-  const rows = await prisma.marketplaceAgent.groupBy({
-    by: ["agent_industry"],
-    _count: { agent_industry: true },
-  });
+  const result = await safeDbQuery(() =>
+    prisma.marketplaceAgent.groupBy({
+      by: ["agent_industry"],
+      _count: { agent_industry: true },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const rows = result.data;
 
   const ordered = Object.keys(INDUSTRY_POSITIONING).map((name) => ({
     name,

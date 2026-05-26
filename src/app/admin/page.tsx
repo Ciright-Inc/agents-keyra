@@ -1,32 +1,36 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const [
-    agents,
-    customers,
-    subscriptions,
-    deploymentPlans,
-    consultations,
-    sovereignCount,
-  ] = await Promise.all([
-    prisma.marketplaceAgent.count(),
-    prisma.customer.count(),
-    prisma.agentSubscription.count(),
-    prisma.deploymentPlan.findMany({
-      orderBy: { created_at: "desc" },
-      take: 25,
-      include: { customer: true },
-    }),
-    prisma.consultationRequest.findMany({
-      orderBy: { created_at: "desc" },
-      take: 25,
-    }),
-    prisma.marketplaceAgent.count({ where: { security_classification: "Sovereign" } }),
-  ]);
+  const result = await safeDbQuery(() =>
+    Promise.all([
+      prisma.marketplaceAgent.count(),
+      prisma.customer.count(),
+      prisma.agentSubscription.count(),
+      prisma.deploymentPlan.findMany({
+        orderBy: { created_at: "desc" },
+        take: 25,
+        include: { customer: true },
+      }),
+      prisma.consultationRequest.findMany({
+        orderBy: { created_at: "desc" },
+        take: 25,
+      }),
+      prisma.marketplaceAgent.count({ where: { security_classification: "Sovereign" } }),
+    ]),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const [agents, customers, subscriptions, deploymentPlans, consultations, sovereignCount] =
+    result.data;
 
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-12">

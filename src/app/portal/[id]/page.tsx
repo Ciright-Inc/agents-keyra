@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
@@ -11,14 +13,22 @@ export default async function CustomerPortalPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({
-    where: { id },
-    include: {
-      subscriptions: { include: { agent: true } },
-      deployment_plans: { orderBy: { created_at: "desc" } },
-    },
-  });
-  if (!customer) notFound();
+  const result = await safeDbQuery(() =>
+    prisma.customer.findUnique({
+      where: { id },
+      include: {
+        subscriptions: { include: { agent: true } },
+        deployment_plans: { orderBy: { created_at: "desc" } },
+      },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+  if (!result.data) notFound();
+
+  const customer = result.data;
 
   const active = customer.subscriptions.filter((s) => s.subscription_status === "Active");
   const pending = customer.subscriptions.filter((s) => s.subscription_status !== "Active");

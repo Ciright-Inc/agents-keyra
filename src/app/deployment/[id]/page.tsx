@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +13,19 @@ export default async function DeploymentPlanPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const plan = await prisma.deploymentPlan.findUnique({
-    where: { id },
-    include: { items: true, customer: true },
-  });
-  if (!plan) notFound();
+  const result = await safeDbQuery(() =>
+    prisma.deploymentPlan.findUnique({
+      where: { id },
+      include: { items: true, customer: true },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+  if (!result.data) notFound();
+
+  const plan = result.data;
 
   const stages = [
     { label: "Plan submitted", done: true },

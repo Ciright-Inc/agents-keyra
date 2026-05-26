@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { AgentCard } from "@/components/AgentCard";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +14,19 @@ export default async function BundleDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const bundle = await prisma.bundle.findUnique({
-    where: { slug },
-    include: { items: { include: { agent: true } } },
-  });
-  if (!bundle) notFound();
+  const result = await safeDbQuery(() =>
+    prisma.bundle.findUnique({
+      where: { slug },
+      include: { items: { include: { agent: true } } },
+    }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+  if (!result.data) notFound();
+
+  const bundle = result.data;
 
   return (
     <div className="max-w-[1320px] mx-auto px-6 py-12">

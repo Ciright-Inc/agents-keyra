@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 import { submitDeployment } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +14,16 @@ export default async function DeployPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const agent = await prisma.marketplaceAgent.findUnique({ where: { agent_slug: slug } });
-  if (!agent) notFound();
+  const result = await safeDbQuery(() =>
+    prisma.marketplaceAgent.findUnique({ where: { agent_slug: slug } }),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+  if (!result.data) notFound();
+
+  const agent = result.data;
 
   return (
     <div className="max-w-[920px] mx-auto px-6 py-12">

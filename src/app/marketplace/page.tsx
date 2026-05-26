@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { AgentCard } from "@/components/AgentCard";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +35,23 @@ export default async function MarketplacePage({
   if (params.subscription) where.subscription_type = params.subscription;
   if (params.country) where.country_applicability = { contains: `"${params.country}"` };
 
-  const [agents, industries, functions, types] = await Promise.all([
-    prisma.marketplaceAgent.findMany({ where, orderBy: [{ agent_industry: "asc" }, { agent_name: "asc" }] }),
-    prisma.marketplaceAgent.groupBy({ by: ["agent_industry"], _count: { agent_industry: true } }),
-    prisma.marketplaceAgent.groupBy({ by: ["agent_function"], _count: { agent_function: true } }),
-    prisma.marketplaceAgent.groupBy({ by: ["agent_type"], _count: { agent_type: true } }),
-  ]);
+  const result = await safeDbQuery(() =>
+    Promise.all([
+      prisma.marketplaceAgent.findMany({
+        where,
+        orderBy: [{ agent_industry: "asc" }, { agent_name: "asc" }],
+      }),
+      prisma.marketplaceAgent.groupBy({ by: ["agent_industry"], _count: { agent_industry: true } }),
+      prisma.marketplaceAgent.groupBy({ by: ["agent_function"], _count: { agent_function: true } }),
+      prisma.marketplaceAgent.groupBy({ by: ["agent_type"], _count: { agent_type: true } }),
+    ]),
+  );
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const [agents, industries, functions, types] = result.data;
 
   return (
     <div className="max-w-[1320px] mx-auto px-6 py-12">

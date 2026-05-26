@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 import { arr } from "@/lib/agent";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +37,13 @@ function isoToFlag(iso: string | null | undefined): string {
 }
 
 export default async function CountriesPage() {
-  const agents = await prisma.marketplaceAgent.findMany();
+  const result = await safeDbQuery(() => prisma.marketplaceAgent.findMany());
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+
+  const agents = result.data;
 
   const universal = agents.filter((a) => arr(a.country_applicability).includes("ALL")).length;
 

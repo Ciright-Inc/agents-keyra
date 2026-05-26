@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AgentCard } from "@/components/AgentCard";
 import { Chip } from "@/components/Chip";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { loadMarketplaceHomeData } from "@/lib/marketplaceHome";
 
 export const dynamic = "force-dynamic";
@@ -9,31 +10,10 @@ export default async function HomePage() {
   const data = await loadMarketplaceHomeData();
 
   if (!data.ok) {
-    return (
-      <section className="max-w-[720px] mx-auto px-6 pt-24 pb-24">
-        <Chip tone="warning" className="mb-4">
-          Marketplace data unavailable
-        </Chip>
-        <h1 className="h-section">Database not ready</h1>
-        <p className="mt-4 text-[15px] leading-relaxed text-muted">{data.error}</p>
-        <p className="mt-3 text-[14px] text-muted">
-          On Railway: attach a Postgres plugin, set{" "}
-          <code className="mono text-[13px]">DATABASE_URL=&#123;&#123; Postgres.DATABASE_URL &#125;&#125;</code>, then
-          redeploy. Check <code className="mono text-[13px]">/api/health?db=1</code> for status.
-        </p>
-        <div className="flex gap-3 mt-8">
-          <Link href="/use-cases" className="btn btn-primary">
-            Browse use cases
-          </Link>
-          <Link href="/security" className="btn">
-            Security model
-          </Link>
-        </div>
-      </section>
-    );
+    return <DatabaseUnavailable message={data.error} />;
   }
 
-  const { featured, bundles, industries, agentCount, sovereignCount } = data;
+  const { featured, bundles, industries, agentCount, sovereignCount } = data.data;
 
   return (
     <>

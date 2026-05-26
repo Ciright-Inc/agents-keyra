@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { DatabaseUnavailable } from "@/components/DatabaseUnavailable";
 import { Chip } from "@/components/Chip";
+import { prisma } from "@/lib/prisma";
+import { safeDbQuery } from "@/lib/safePrisma";
 import { arr, securityChipClass, subscriptionTypeChipClass } from "@/lib/agent";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +14,25 @@ export default async function AgentDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const agent = await prisma.marketplaceAgent.findUnique({ where: { agent_slug: slug } });
-  if (!agent) notFound();
+  const result = await safeDbQuery(async () => {
+    const agent = await prisma.marketplaceAgent.findUnique({ where: { agent_slug: slug } });
+    if (!agent) return null;
+    const siblings = await prisma.marketplaceAgent.findMany({
+      where: {
+        agent_industry: agent.agent_industry,
+        NOT: { keyra_agent_id: agent.keyra_agent_id },
+      },
+      take: 4,
+    });
+    return { agent, siblings };
+  });
+
+  if (!result.ok) {
+    return <DatabaseUnavailable message={result.error} />;
+  }
+  if (!result.data) notFound();
+
+  const { agent, siblings } = result.data;
 
   const capabilities = arr(agent.agent_capabilities);
   const inputs = arr(agent.required_inputs);
@@ -21,15 +40,6 @@ export default async function AgentDetailPage({
   const permissions = arr(agent.required_permissions);
   const integrations = arr(agent.required_integrations);
   const countries = arr(agent.country_applicability);
-
-  // Same-industry siblings
-  const siblings = await prisma.marketplaceAgent.findMany({
-    where: {
-      agent_industry: agent.agent_industry,
-      NOT: { keyra_agent_id: agent.keyra_agent_id },
-    },
-    take: 4,
-  });
 
   return (
     <div className="max-w-[1320px] mx-auto px-6 py-12">
