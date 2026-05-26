@@ -66,8 +66,17 @@ function run(cmd, args, env) {
   });
 }
 
+function pgClientOptions(connUrl) {
+  return {
+    connectionString: pgConnectionUrl(connUrl),
+    ssl: connUrl.includes("rlwy.net") || connUrl.includes("railway")
+      ? { rejectUnauthorized: false }
+      : undefined,
+  };
+}
+
 async function ensureSchema(connUrl, schema) {
-  const client = new Client({ connectionString: pgConnectionUrl(connUrl) });
+  const client = new Client(pgClientOptions(connUrl));
   await client.connect();
   try {
     await client.query(`CREATE SCHEMA IF NOT EXISTS "${schema}";`);
@@ -78,7 +87,7 @@ async function ensureSchema(connUrl, schema) {
 }
 
 async function tableExists(connUrl, schema) {
-  const client = new Client({ connectionString: pgConnectionUrl(connUrl) });
+  const client = new Client(pgClientOptions(connUrl));
   await client.connect();
   try {
     const res = await client.query(
