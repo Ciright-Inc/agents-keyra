@@ -13,7 +13,8 @@
     "start:next": "next start -p ${PORT:-3041} -H 0.0.0.0",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "deploy:db": "prisma db push --accept-data-loss && tsx prisma/seed.ts",
+    "deploy:db": "node scripts/bootstrap-db.mjs",
+    "bootstrap:db": "node scripts/bootstrap-db.mjs",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts"

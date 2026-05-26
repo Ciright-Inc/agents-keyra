@@ -3,4 +3,4 @@ NIXPACKS_NODE_VERSION = "22"
 NIXPACKS_INSTALL_DEV_DEPS = "true"
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["npm run build", "node scripts/bootstrap-db.mjs"]
