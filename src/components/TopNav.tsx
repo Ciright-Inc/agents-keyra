@@ -29,7 +29,7 @@ export function TopNav() {
       <div className="keyra-topnav__inner">
         <Link href="/" className="keyra-topnav__brand" aria-label="Keyra home">
           <Image
-            src="/favicon.png"
+            src="/favicon.svg"
             alt=""
             width={22}
             height={22}

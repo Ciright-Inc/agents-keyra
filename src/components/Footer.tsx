@@ -9,7 +9,7 @@ export function Footer() {
           <div className="keyra-footer__brand-row">
             <span className="keyra-footer__brand-tile">
               <Image
-                src="/favicon.png"
+                src="/favicon.svg"
                 alt=""
                 width={22}
                 height={22}

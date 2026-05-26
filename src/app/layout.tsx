@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { TopNav } from "@/components/TopNav";
 import { Footer } from "@/components/Footer";
 
-const KEYRA_FAVICON_SRC = "/favicon.png";
+const KEYRA_FAVICON_SRC = "/favicon.svg";
 
 export const metadata: Metadata = {
   title: "Keyra — Operational civilization infrastructure for the autonomous era",
